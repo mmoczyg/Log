@@ -207,6 +207,9 @@ def train_test_split(dataset_name='HDFS', train_samples=5000, seed=42, options=N
         
     elif dataset_name == 'MtController':				#😀️
         df = pd.read_csv(dir + '/datasets/MtController_structured.csv')
+        if 'EventSequence' not in df.columns:
+            print("Error: 'EventSequence' column missing in MtController_structured.csv")
+            return None, None
         df['EventSequence'] = df['EventSequence'].apply(literal_eval)
         train_df = df.sample(frac=0.8, random_state=seed).reset_index(drop=True)
         test_df = df.drop(train_df.index).reset_index(drop=True)
@@ -214,7 +217,7 @@ def train_test_split(dataset_name='HDFS', train_samples=5000, seed=42, options=N
         test_df.to_csv(dir + '/datasets/MtController.test.csv', index=False)
         print(f"Training dataset: {len(train_df)} entries")
         print(f"Testing dataset: {len(test_df)} entries")
-        return train_df, test_df   
+        return train_df, test_df  
         
         
     elif dataset_name == 'BGL':

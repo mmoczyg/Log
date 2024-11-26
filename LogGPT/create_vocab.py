@@ -53,4 +53,4 @@ def build_vocab(dataset_path, vocab_path, min_freq=1):
 
 # Beispielaufruf
 build_vocab('./datasets/hdfs.log', './datasets/HDFS_vocab.pkl')
-#build_vocab('./datasets/Mt Controller Log', './datasets/MtController_vocab.pkl')😀️
+build_vocab('./datasets/mt_controller_log', './datasets/MtController_vocab.pkl')😀️

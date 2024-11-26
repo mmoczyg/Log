@@ -90,8 +90,10 @@ class LogParser:
             currentDepth += 1
 
         logClustL = parentn.childD
-
         retLogClust = self.fastMatch(logClustL, seq)
+
+        if retLogClust is not None and not isinstance(retLogClust, Logcluster):
+            raise TypeError("treeSearch returned non-Logcluster instances")
 
         return retLogClust
 
@@ -121,25 +123,29 @@ class LogParser:
                 if not self.hasNumbers(token):
                     if '<*>' in parentn.childD:
                         if len(parentn.childD) < self.maxChild:
-                            newNode = Node(depth=currentDepth + 1, digitOrtoken=token)
+                            newNode = Node(
+                                depth=currentDepth + 1, digitOrtoken=token)
                             parentn.childD[token] = newNode
                             parentn = newNode
                         else:
                             parentn = parentn.childD['<*>']
                     else:
                         if len(parentn.childD) + 1 < self.maxChild:
-                            newNode = Node(depth=currentDepth + 1, digitOrtoken=token)
+                            newNode = Node(
+                                depth=currentDepth + 1, digitOrtoken=token)
                             parentn.childD[token] = newNode
                             parentn = newNode
                         elif len(parentn.childD) + 1 == self.maxChild:
-                            newNode = Node(depth=currentDepth + 1, digitOrtoken='<*>')
+                            newNode = Node(
+                                depth=currentDepth + 1, digitOrtoken='<*>')
                             parentn.childD['<*>'] = newNode
                             parentn = newNode
                         else:
                             parentn = parentn.childD['<*>']
                 else:
                     if '<*>' not in parentn.childD:
-                        newNode = Node(depth=currentDepth + 1, digitOrtoken='<*>')
+                        newNode = Node(
+                            depth=currentDepth + 1, digitOrtoken='<*>')
                         parentn.childD['<*>'] = newNode
                         parentn = newNode
                     else:
@@ -149,6 +155,7 @@ class LogParser:
 
         currentDepth += 1
     # seq1 is template
+
     def seqDist(self, seq1, seq2):
         assert len(seq1) == len(seq2)
         simTokens = 0
@@ -165,6 +172,7 @@ class LogParser:
 
         return retVal, numOfPar
 
+    # Before (inconsistent)
     def fastMatch(self, logClustL, seq):
         retLogClust = None
 
@@ -173,31 +181,19 @@ class LogParser:
         maxClust = None
 
         for logClust in logClustL:
-            curSim, curNumOfPara = self.seqDist(logClust.logTemplate, seq)
-            if curSim > maxSim or (curSim == maxSim and curNumOfPara > maxNumOfPara):
-                maxSim = curSim
-                maxNumOfPara = curNumOfPara
-                maxClust = logClust
+            if not isinstance(logClust, Logcluster):
+                continue
+                curSim, curNumOfPara = self.seqDist(logClust.logTemplate, seq)
+                if curSim > maxSim or (
+                        curSim == maxSim and curNumOfPara > maxNumOfPara):
+                    maxSim = curSim
+                    maxNumOfPara = curNumOfPara
+                    maxClust = logClust
 
-        if maxSim >= self.st:
-            retLogClust = maxClust
+                if maxSim >= self.st:
+                    retLogClust = maxClust
 
-        return retLogClust
-
-    def getTemplate(self, seq1, seq2):
-        assert len(seq1) == len(seq2)
-        retVal = []
-
-        i = 0
-        for word in seq1:
-            if word == seq2[i]:
-                retVal.append(word)
-            else:
-                retVal.append('<*>')
-
-            i += 1
-
-        return retVal
+                return retLogClust
 
     def outputResult(self, logClustL):
         log_templates = [0] * self.df_log.shape[0]
@@ -206,25 +202,38 @@ class LogParser:
         for logClust in logClustL:
             template_str = ' '.join(logClust.logTemplate)
             occurrence = len(logClust.logIDL)
-            template_id = hashlib.md5(template_str.encode('utf-8')).hexdigest()[0:8]
+            template_id = hashlib.md5(
+                template_str.encode('utf-8')).hexdigest()[0:8]
             for logID in logClust.logIDL:
                 logID -= 1
                 log_templates[logID] = template_str
                 log_templateids[logID] = template_id
             df_events.append([template_id, template_str, occurrence])
 
-        df_event = pd.DataFrame(df_events, columns=['EventId', 'EventTemplate', 'Occurrences'])
+        df_event = pd.DataFrame(
+            df_events,
+            columns=[
+                'EventId',
+                'EventTemplate',
+                'Occurrences'])
         self.df_log['EventId'] = log_templateids
         self.df_log['EventTemplate'] = log_templates
 
         if self.keep_para:
-            self.df_log["ParameterList"] = self.df_log.apply(self.get_parameter_list, axis=1)
-        self.df_log.to_csv(os.path.join(self.savePath, self.logName + '_structured.csv'), index=False)
+            self.df_log["ParameterList"] = self.df_log.apply(
+                self.get_parameter_list, axis=1)
+        self.df_log.to_csv(
+            os.path.join(
+                self.savePath,
+                self.logName +
+                '_structured.csv'),
+            index=False)
 
         occ_dict = dict(self.df_log['EventTemplate'].value_counts())
         df_event = pd.DataFrame()
         df_event['EventTemplate'] = self.df_log['EventTemplate'].unique()
-        df_event['EventId'] = df_event['EventTemplate'].map(lambda x: hashlib.md5(x.encode('utf-8')).hexdigest()[0:8])
+        df_event['EventId'] = df_event['EventTemplate'].map(
+            lambda x: hashlib.md5(x.encode('utf-8')).hexdigest()[0:8])
         df_event['Occurrences'] = df_event['EventTemplate'].map(occ_dict)
         df_event.to_csv(os.path.join(self.savePath, self.logName + '_templates.csv'), index=False,
                         columns=["EventId", "EventTemplate", "Occurrences"])
@@ -266,32 +275,45 @@ class LogParser:
 
             # Match no existing log cluster
             if matchCluster is None:
-                newCluster = Logcluster(logTemplate=logmessageL, logIDL=[logID])
+                newCluster = Logcluster(
+                    logTemplate=logmessageL, logIDL=[logID])
                 logCluL.append(newCluster)
                 self.addSeqToPrefixTree(rootNode, newCluster)
 
             # Add the new log message to the existing cluster
             else:
-                newTemplate = self.getTemplate(logmessageL, matchCluster.logTemplate)
+                newTemplate = self.getTemplate(
+                    logmessageL, matchCluster.logTemplate)
                 matchCluster.logIDL.append(logID)
                 if ' '.join(newTemplate) != ' '.join(matchCluster.logTemplate):
                     matchCluster.logTemplate = newTemplate
 
             count += 1
             if count % 1000 == 0 or count == len(self.df_log):
-                print('Processed {0:.1f}% of log lines.'.format(count * 100.0 / len(self.df_log)))
+                print('Processed {0:.1f}% of log lines.'.format(
+                    count * 100.0 / len(self.df_log)))
 
         if not os.path.exists(self.savePath):
             os.makedirs(self.savePath)
 
         self.outputResult(logCluL)
 
-        print('Parsing done. [Time taken: {!s}]'.format(datetime.now() - start_time))
+        print(
+            'Parsing done. [Time taken: {!s}]'.format(
+                datetime.now() -
+                start_time))
 
     def load_data(self):
-        headers, regex = self.generate_logformat_regex(self.log_format)
-        self.df_log = self.log_to_dataframe(os.path.join(self.path, self.logName), regex, headers, self.log_format)
-        self.df_log = self.json_to_dataframe(os.path.join(self.path, self.logName)) #😀️
+        with open(os.path.join(self.path, self.logName), 'r') as fin:
+            log_data = json.load(fin)
+
+        log_messages = []
+        for record in log_data:
+            log_messages.append(record)
+
+        self.df_log = pd.DataFrame(log_messages)
+        self.df_log.insert(0, 'LineId', None)
+        self.df_log['LineId'] = [i + 1 for i in range(len(self.df_log))]  # 😀️
 
     def preprocess(self, line):
         for currentRex in self.rex:
@@ -316,15 +338,15 @@ class LogParser:
         logdf.insert(0, 'LineId', None)
         logdf['LineId'] = [i + 1 for i in range(linecount)]
         return logdf
-        
-    def json_to_dataframe(self, log_file):     #😀️
+
+    def json_to_dataframe(self, log_file):  # 😀️
         with open(log_file, 'r') as fin:
             log_data = json.load(fin)
-        
+
         log_messages = []
         for record in log_data:
             log_messages.append(record)
-        
+
         logdf = pd.DataFrame(log_messages)
         logdf.insert(0, 'LineId', None)
         logdf['LineId'] = [i + 1 for i in range(len(logdf))]
@@ -338,7 +360,7 @@ class LogParser:
         regex = ''
         for k in range(len(splitters)):
             if k % 2 == 0:
-                splitter = re.sub(' +', '\\\s+', splitters[k])
+                splitter = re.sub(' +', '\\\\s+', splitters[k])
                 regex += splitter
             else:
                 header = splitters[k].strip('<').strip('>')
@@ -349,12 +371,14 @@ class LogParser:
 
     def get_parameter_list(self, row):
         template_regex = re.sub(r"<.{1,5}>", "<*>", row["EventTemplate"])
-        if "<*>" not in template_regex: return []
-        template_regex = re.sub(r'([^A-Za-z0-9])', r'\\\1', template_regex)
+        if "<*>" not in template_regex:
+            return []
+        template_regex = re.sub(r'([^\w\s])', r'\\\1', template_regex)
         template_regex = re.sub(r'\\ +', r'\s+', template_regex)
-        template_regex = "^" + template_regex.replace("\<\*\>", "(.*?)") + "$"
+        template_regex = "^" + \
+            template_regex.replace("\\<\\*\\>", "(.*?)") + "$"
         parameter_list = re.findall(template_regex, row["msg"])
         parameter_list = parameter_list[0] if parameter_list else ()
-        parameter_list = list(parameter_list) if isinstance(parameter_list, tuple) else [parameter_list]
+        parameter_list = list(parameter_list) if isinstance(
+            parameter_list, tuple) else [parameter_list]
         return parameter_list
-
